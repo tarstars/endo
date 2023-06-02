@@ -313,6 +313,23 @@ func templateToString(tokens []TemplateToken) string {
 	return buf.String()
 }
 
+func envToString(elements []string) string {
+	var buf bytes.Buffer
+
+	buf.WriteByte('[')
+	if len(elements) != 0 {
+		buf.WriteString(elements[0])
+
+		for _, element := range elements[1:] {
+			buf.WriteByte(',')
+			buf.WriteString(element)
+		}
+	}
+	buf.WriteByte(']')
+
+	return buf.String()
+}
+
 type Environment []string
 
 func (e Environment) NotEqual(other Environment) bool {
@@ -440,10 +457,19 @@ func protect(l int, s string) string {
 	return s
 }
 
-func Step(dna DnaStorage) error {
+func Step(dna DnaStorage, debug bool) error {
 	currentPattern, err := pattern(dna)
 	if err != nil {
 		return err
+	}
+
+	if debug {
+		patternString := patternToString(currentPattern)
+		if len(patternString) < 1000 {
+			fmt.Println("pattern: ", patternString)
+		} else {
+			fmt.Println("pattern too long, len=", len(patternString))
+		}
 	}
 
 	currentTemplate, err := template(dna)
@@ -451,14 +477,40 @@ func Step(dna DnaStorage) error {
 		return err
 	}
 
+	if debug {
+		templateString := templateToString(currentTemplate)
+		if len(templateString) < 1000 {
+			fmt.Println("template: ", templateString)
+		} else {
+			fmt.Println("template string is too long, len =", len(templateString))
+		}
+	}
+
 	currentEnv, err := match(dna, currentPattern)
 	if err != nil {
 		return err
 	}
 
+	if debug {
+		envString := envToString(currentEnv)
+		if len(envString) < 1000 {
+			fmt.Println("env: ", currentEnv)
+		} else {
+			fmt.Println("env is too long, len = ", len(envString))
+		}
+	}
+
 	currentPrefix, err := formPrefix(currentTemplate, currentEnv)
 	if err != nil {
 		return err
+	}
+
+	if debug {
+		if len(currentPrefix) < 1000 {
+			fmt.Println("prefix:", currentPrefix)
+		} else {
+			fmt.Println("prefix is too long, len = ", len(currentPrefix))
+		}
 	}
 
 	dna.PrependPrefix(currentPrefix)

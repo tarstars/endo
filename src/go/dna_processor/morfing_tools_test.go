@@ -381,7 +381,7 @@ func TestStep(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dna := NewSimpleDnaStorage(tc.sourceDna)
-			err := Step(dna)
+			err := Step(dna, false)
 			if err != nil {
 				t.Errorf("Fail: error %v", err)
 			}

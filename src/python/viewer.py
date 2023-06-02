@@ -1,10 +1,22 @@
 #!/usr/bin/env python3.10
 import collections
+import logging
 
 import pygame
 import select
 import sys
 
+logger = logging.Logger(__file__, level=logging.DEBUG)
+
+c_handler = logging.StreamHandler()
+c_handler.setLevel(logging.DEBUG)  # Set level for this handler
+
+# Create formatters and add it to handlers
+c_format = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+c_handler.setFormatter(c_format)
+
+# Add handlers to the logger
+logger.addHandler(c_handler)
 
 def empty_bitmap(shape):
     return pygame.Surface(shape, pygame.SRCALPHA)
@@ -12,6 +24,10 @@ def empty_bitmap(shape):
 
 class RnaWorkspace:
     def __init__(self, shape):
+        logger.info('info')
+        logger.debug('debug')
+        logger.warning('warning')
+
         self.black = (0, 0, 0)
         self.red = (255, 0, 0)
         self.green = (0, 255, 0)
@@ -94,6 +110,9 @@ class RnaWorkspace:
         new_color = self.get_color_alpha()
         old_color = self.get_pixel(self.pos)
 
+        logger.debug('new_color %s', new_color)
+        logger.debug('old_color %s', old_color)
+
         def nei(x, y):
             yield x - 1, y
             yield x, y - 1
@@ -118,6 +137,7 @@ class RnaWorkspace:
             current_point = q.popleft()
             for nei_point in new_nei(*current_point):
                 self.set_pixel(nei_point, new_color)
+                q.append(nei_point)
 
     def compose(self):
         if len(self.bitmaps) > 1:
