@@ -7,7 +7,7 @@ func main() {
 
 	var n int
 
-	scanf, err := fmt.Scanf("%d", &n)
+	_, err := fmt.Scanf("%d", &n)
 	if err != nil {
 		return
 	}

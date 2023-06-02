@@ -206,7 +206,7 @@ func pattern(s DnaStorage) ([]PatternToken, error) {
 					}
 				case 'I':
 					for p := 3; p < 10; p += 1 {
-						fmt.Print(s.GetChar())
+						fmt.Print(string(s.GetChar()))
 					}
 				}
 			}
@@ -286,7 +286,7 @@ func template(s DnaStorage) ([]TemplateToken, error) {
 					return tokens, nil
 				case 'I':
 					for p := 3; p < 10; p += 1 {
-						fmt.Print(s.GetChar())
+						fmt.Print(string(s.GetChar()))
 					}
 				}
 			}
@@ -440,7 +440,7 @@ func protect(l int, s string) string {
 	return s
 }
 
-func step(dna DnaStorage) error {
+func Step(dna DnaStorage) error {
 	currentPattern, err := pattern(dna)
 	if err != nil {
 		return err
