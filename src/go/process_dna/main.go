@@ -15,5 +15,8 @@ func main() {
 	}
 
 	dna := dna_processor.NewSimpleDnaStorage(string(data))
-	dna_processor.Step(dna)
+
+	for {
+		dna_processor.Step(dna)
+	}
 }

@@ -19,7 +19,7 @@ class RnaWorkspace:
         self.yellow = (255, 255, 0)
         self.magenta = (255, 0, 255)
         self.cyan = (0, 255, 0)
-        self.white = (255, 255, 0)
+        self.white = (255, 255, 255)
         self.transparent = 0
         self.opaque = 255
         self.bucket_rgb = []
@@ -51,10 +51,10 @@ class RnaWorkspace:
                     (self.pos[1] + self.dir[1]) % self.shape[1]
                     )
 
-    def rotate_cw(self):
+    def rotate_ccw(self):
         self.dir = (self.dir[1], -self.dir[0])
 
-    def rotate_ccw(self):
+    def rotate_cw(self):
         self.dir = (-self.dir[1], self.dir[0])
 
     def get_color_alpha(self):
@@ -88,7 +88,7 @@ class RnaWorkspace:
         return self.bitmaps[0].get_at(pos)
 
     def set_pixel(self, pos, color):
-        self.bitmaps[0].set_at(x_y=pos, color=color)
+        self.bitmaps[0].set_at(pos, color)
 
     def try_fill(self):
         new_color = self.get_color_alpha()
@@ -128,7 +128,7 @@ class RnaWorkspace:
                     p_res = [0] * 4
                     for z in range(4):
                         p_res[z] = p0[z] + p1[z] * (255 - p0[3]) // 255
-                    self.bitmaps[1].set_at(x_y=(x, y), color=p_res)
+                    self.bitmaps[1].set_at((x, y), p_res)
             self.bitmaps = self.bitmaps[1:]
 
     def clip(self):
