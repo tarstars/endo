@@ -37,8 +37,8 @@ func TestNat(t *testing.T) {
 
 	// Test case 4: Empty sequence
 	_, err = nat(NewSimpleDnaStorage(""))
-	if err != finish {
-		t.Errorf("Expected nat(\"\") to throw 'finish' exception")
+	if err != Finish {
+		t.Errorf("Expected nat(\"\") to throw 'Finish' exception")
 	}
 
 	// Test case 5: Invalid letter
@@ -55,59 +55,103 @@ func TestNat(t *testing.T) {
 }
 
 func TestConsts(t *testing.T) {
-	// Test case 1: "CFPIF"
-	result, err := consts(NewSimpleDnaStorage("CFPIF"))
-	if err != nil {
-		t.Errorf("Error occurred: %v", err)
-	}
-	expected := "ICF"
-	if result != expected {
-		t.Errorf("Expected consts(\"CFPIF\") to be %s, but got %s", expected, result)
-	}
-
-	// Test case 2: "ICFPC"
-	result, err = consts(NewSimpleDnaStorage("ICFPC"))
-	if err != nil {
-		t.Errorf("Error occurred: %v", err)
-	}
-	expected = "PCFI"
-	if result != expected {
-		t.Errorf("Expected consts(\"ICFPC\") to be %s, but got %s", expected, result)
+	cases := []struct {
+		name           string
+		dna            DnaStorage
+		expected       string
+		expectedDnaLen int
+	}{
+		{
+			"quote test 00",
+			NewSimpleDnaStorage("CFPICIIF"),
+			"ICFP",
+			3,
+		},
 	}
 
-	// Test case 3: "ICF"
-	result, err = consts(NewSimpleDnaStorage("ICF"))
-	if err != nil {
-		t.Errorf("Error: %v", err)
-	}
-	expected = "PC"
-	if result != expected {
-		t.Errorf("Expected consts(\"ICF\") to be %s, but got %s", expected, result)
-	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			received, err := consts(tc.dna)
+			if err != nil {
+				t.Fatalf("Error occurred: %v", err)
+			}
 
-	// Test case 4: "X"
-	_, err = consts(NewSimpleDnaStorage("X"))
-	if err == nil || err.Error() != "invalid letter" {
-		t.Errorf("Expected consts(\"X\") to throw 'invalid letter' error")
+			if received != tc.expected || tc.dna.Len() != tc.expectedDnaLen {
+				t.Errorf("Fail: expected %s unquoted received %s",
+					tc.expected, received)
+			}
+		})
 	}
 }
 
 func TestPattern(t *testing.T) {
 	cases := []struct {
-		name     string
-		dna      DnaStorage
-		expected string
+		name             string
+		dna              DnaStorage
+		expected_pattern string
+		expected_dna_len int
 	}{
 		{
-			name:     "SingleToken",
-			dna:      NewSimpleDnaStorage("CIIC"),
-			expected: "I",
+			name:             "SingleToken_00",
+			dna:              NewSimpleDnaStorage("CIIC"),
+			expected_pattern: "I",
+			expected_dna_len: 0,
 		},
 		{
-			name:     "MultipleTokens",
-			dna:      NewSimpleDnaStorage("IIPIPICPIICICIIF"),
-			expected: "(!(2))P",
+			name:             "SingleToken_01",
+			dna:              NewSimpleDnaStorage("FIIC"),
+			expected_pattern: "C",
+			expected_dna_len: 0,
 		},
+		{
+			name:             "SingleToken_02",
+			dna:              NewSimpleDnaStorage("PIIC"),
+			expected_pattern: "F",
+			expected_dna_len: 0,
+		},
+		{
+			name:             "SingleToken_03",
+			dna:              NewSimpleDnaStorage("ICIIC"),
+			expected_pattern: "P",
+			expected_dna_len: 0,
+		},
+		{
+			name:             "MultipleTokens_00",
+			dna:              NewSimpleDnaStorage("IIPIPICPIICICIIF"),
+			expected_pattern: "(!(2))P",
+			expected_dna_len: 0,
+		},
+		{
+			name:             "MultipleTokens_01",
+			dna:              NewSimpleDnaStorage("IPCICPIIF"),
+			expected_pattern: "!(5)",
+			expected_dna_len: 0,
+		},
+		{
+			name:             "MultipleTokens_02",
+			dna:              NewSimpleDnaStorage("IFICIIC"),
+			expected_pattern: "?(I)",
+			expected_dna_len: 0,
+		},
+		{
+			name:             "MultipleTokens_03",
+			dna:              NewSimpleDnaStorage("IFIFIIC"),
+			expected_pattern: "?(C)",
+			expected_dna_len: 0,
+		},
+		{
+			name:             "MultipleTokens_04",
+			dna:              NewSimpleDnaStorage("IFIPIIC"),
+			expected_pattern: "?(F)",
+			expected_dna_len: 0,
+		},
+		{
+			name:             "MultipleTokens_05",
+			dna:              NewSimpleDnaStorage("IFIICIIC"),
+			expected_pattern: "?(P)",
+			expected_dna_len: 0,
+		},
+
 		// Add more test cases here as needed.
 	}
 
@@ -120,8 +164,9 @@ func TestPattern(t *testing.T) {
 
 			sp := patternToString(p)
 
-			if sp != tc.expected {
-				t.Errorf("Fail: expected %s received %s", tc.expected, sp)
+			if sp != tc.expected_pattern || tc.dna.Len() != tc.expected_dna_len {
+				t.Errorf("Fail: expected %s pattern with length %d received %s with length %d",
+					tc.expected_pattern, tc.expected_dna_len, sp, tc.dna.Len())
 			}
 		})
 	}

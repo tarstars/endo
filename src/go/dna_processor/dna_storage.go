@@ -1,6 +1,9 @@
 package dna_processor
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type DnaStorage interface {
 	GetChar() byte
@@ -10,15 +13,19 @@ type DnaStorage interface {
 	Skip(n int)
 	String() string
 	PrependPrefix(s string)
+	Len() int
+	SaveOffset()
+	RestoreOffset()
 }
 
 type SimpleDnaStorage struct {
-	offset int
-	data   string
+	offset      int
+	savedOffset int
+	data        string
 }
 
 func NewSimpleDnaStorage(data string) *SimpleDnaStorage {
-	return &SimpleDnaStorage{0, data}
+	return &SimpleDnaStorage{data: data}
 }
 
 // GetChar retrieves the next character from the storage
@@ -57,4 +64,22 @@ func (storage *SimpleDnaStorage) String() string {
 func (storage *SimpleDnaStorage) PrependPrefix(s string) {
 	storage.data = s + storage.data[storage.offset:]
 	storage.offset = 0
+}
+
+func (storage *SimpleDnaStorage) Len() int {
+	rest := len(storage.data) - storage.offset
+	if rest > 0 {
+		return rest
+	}
+	return 0
+}
+
+func (storage *SimpleDnaStorage) SaveOffset() {
+	fmt.Print("saved offset: ", storage.savedOffset)
+	storage.savedOffset = storage.offset
+}
+
+func (storage *SimpleDnaStorage) RestoreOffset() {
+	fmt.Print("restored offset: replace", storage.offset, " with ", storage.savedOffset)
+	storage.offset = storage.savedOffset
 }

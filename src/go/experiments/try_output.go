@@ -1,8 +1,18 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 func main() {
+	fmt.Fprintln(os.Stdout, "stdout")
+	fmt.Fprintln(os.Stderr, "stderr")
+}
+
+/*
+
+
 	// fmt.Printf("%c", '!')
 
 	var n int
@@ -22,4 +32,7 @@ func main() {
 	default:
 		fmt.Print("Nothing matched")
 	}
-}
+
+
+
+*/

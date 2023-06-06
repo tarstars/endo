@@ -30,11 +30,9 @@ func main() {
 
 	dna := dna_processor.NewSimpleDnaStorage(string(data))
 
-	for {
-		err = dna_processor.Step(dna, true)
-		fmt.Print("error: ", err)
-	}
+	err = dna_processor.Step(dna, true)
+	fmt.Print("error: ", err)
 
-	//_, err = fileDest.WriteString(dna.String())
-	//handleError(err)
+	_, err = fileDest.WriteString(dna.String())
+	handleError(err)
 }

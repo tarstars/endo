@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 )
 
-// Custom exception for signaling the end of sequence
-var finish = errors.New("finish")
+// Finish Custom exception for signaling the end of sequence
+var Finish = errors.New("Finish")
 
 // Function to interpret a sequence of letters 'I', 'C', 'F', 'P'
 func nat(s DnaStorage) (int, error) {
@@ -15,7 +16,7 @@ func nat(s DnaStorage) (int, error) {
 	k := 1
 
 	if s.IsEmpty() {
-		return 0, finish
+		return 0, Finish
 	}
 
 	for !s.IsEmpty() {
@@ -159,7 +160,7 @@ func pattern(s DnaStorage) ([]PatternToken, error) {
 
 	for {
 		if s.IsEmpty() {
-			return nil, finish
+			return nil, Finish
 		}
 		c := s.GetChar()
 		switch c {
@@ -171,7 +172,7 @@ func pattern(s DnaStorage) ([]PatternToken, error) {
 			tokens = append(tokens, NewConstToken('F'))
 		case 'I':
 			if s.IsEmpty() {
-				return nil, finish
+				return nil, Finish
 			}
 			cc := s.GetChar()
 			switch cc {
@@ -184,13 +185,16 @@ func pattern(s DnaStorage) ([]PatternToken, error) {
 					tokens = append(tokens, NewSkipToken(n))
 				}
 			case 'F':
+				if s.IsEmpty() {
+					return nil, Finish
+				}
 				s.GetChar()
-				if substring, err := consts(s); err != nil {
+				if substring, err := consts(s); err == nil {
 					tokens = append(tokens, NewSearchToken(substring))
 				}
 			case 'I':
 				if s.IsEmpty() {
-					return nil, finish
+					return nil, Finish
 				}
 				ccc := s.GetChar()
 				switch ccc {
@@ -242,7 +246,7 @@ func template(s DnaStorage) ([]TemplateToken, error) {
 
 	for {
 		if s.IsEmpty() {
-			return nil, finish
+			return nil, Finish
 		}
 		c := s.GetChar()
 		switch c {
@@ -254,7 +258,7 @@ func template(s DnaStorage) ([]TemplateToken, error) {
 			tokens = append(tokens, NewConstToken('F'))
 		case 'I':
 			if s.IsEmpty() {
-				return nil, finish
+				return nil, Finish
 			}
 			cc := s.GetChar()
 			switch cc {
@@ -272,7 +276,7 @@ func template(s DnaStorage) ([]TemplateToken, error) {
 				tokens = append(tokens, NewReferenceToken(n, l))
 			case 'I':
 				if s.IsEmpty() {
-					return nil, finish
+					return nil, Finish
 				}
 				ccc := s.GetChar()
 				switch ccc {
@@ -347,6 +351,7 @@ func (e Environment) NotEqual(other Environment) bool {
 func match(dna DnaStorage, pattern []PatternToken) (Environment, error) {
 	env := make(Environment, 0)
 	stringStack := make([]bytes.Buffer, 0)
+	dna.SaveOffset()
 
 	for _, token := range pattern {
 		switch t := token.(type) {
@@ -355,14 +360,20 @@ func match(dna DnaStorage, pattern []PatternToken) (Environment, error) {
 				return nil, errors.New("Not enough DNA")
 			}
 			if dna.GetChar() != t.c {
+				dna.RestoreOffset()
 				return nil, errors.New("Mismatch")
 			}
 		case *SkipToken:
 			if len(stringStack) == 0 {
 				dna.Skip(t.n)
+				if dna.IsEmpty() {
+					dna.RestoreOffset()
+					return nil, errors.New("Not enough DNA")
+				}
 			} else {
 				for p := 0; p < t.n; p++ {
 					if dna.IsEmpty() {
+						dna.RestoreOffset()
 						return nil, errors.New("Not enough DNA")
 					}
 					c := dna.GetChar()
@@ -374,6 +385,7 @@ func match(dna DnaStorage, pattern []PatternToken) (Environment, error) {
 		case *SearchToken:
 			index := dna.Index(t.s)
 			if index == -1 {
+				dna.RestoreOffset()
 				return nil, errors.New("Pattern not found")
 			}
 			for p := 0; p < index; p++ {
@@ -404,13 +416,17 @@ func formPrefix(template []TemplateToken, env Environment) (string, error) {
 		case *ConstToken:
 			buf.WriteByte(t.c)
 		case *ReferenceToken:
-			if t.n < 0 || t.n >= len(env) {
-				return "", errors.New("ReferenceToken index out of range")
+			subStr := ""
+			if t.l < len(env) {
+				subStr = protect(t.l, env[t.n])
 			}
-			subStr := protect(t.l, env[t.n])
 			buf.WriteString(subStr)
 		case *LenToken:
-			buf.WriteString(AsNat(len(env[t.n])))
+			clippedN := 0
+			if t.n < len(env) {
+				clippedN = len(env[t.n])
+			}
+			buf.WriteString(AsNat(clippedN))
 		}
 	}
 
@@ -466,9 +482,9 @@ func Step(dna DnaStorage, debug bool) error {
 	if debug {
 		patternString := patternToString(currentPattern)
 		if len(patternString) < 1000 {
-			fmt.Println("pattern: ", patternString)
+			fmt.Fprintln(os.Stderr, "pattern: ", patternString)
 		} else {
-			fmt.Println("pattern too long, len=", len(patternString))
+			fmt.Fprintln(os.Stderr, "pattern too long, len=", len(patternString))
 		}
 	}
 
@@ -480,9 +496,9 @@ func Step(dna DnaStorage, debug bool) error {
 	if debug {
 		templateString := templateToString(currentTemplate)
 		if len(templateString) < 1000 {
-			fmt.Println("template: ", templateString)
+			fmt.Fprintln(os.Stderr, "template: ", templateString)
 		} else {
-			fmt.Println("template string is too long, len =", len(templateString))
+			fmt.Fprintln(os.Stderr, "template string is too long, len =", len(templateString))
 		}
 	}
 
@@ -494,9 +510,9 @@ func Step(dna DnaStorage, debug bool) error {
 	if debug {
 		envString := envToString(currentEnv)
 		if len(envString) < 1000 {
-			fmt.Println("env: ", currentEnv)
+			fmt.Fprintln(os.Stderr, "env: ", currentEnv)
 		} else {
-			fmt.Println("env is too long, len = ", len(envString))
+			fmt.Fprintln(os.Stderr, "env is too long, len = ", len(envString))
 		}
 	}
 
@@ -507,9 +523,9 @@ func Step(dna DnaStorage, debug bool) error {
 
 	if debug {
 		if len(currentPrefix) < 1000 {
-			fmt.Println("prefix:", currentPrefix)
+			fmt.Fprintln(os.Stderr, "prefix:", currentPrefix)
 		} else {
-			fmt.Println("prefix is too long, len = ", len(currentPrefix))
+			fmt.Fprintln(os.Stderr, "prefix is too long, len = ", len(currentPrefix))
 		}
 	}
 
