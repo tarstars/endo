@@ -223,7 +223,6 @@ def main():
         if select.select([sys.stdin, ], [], [], 0.0)[0]:
             for _ in range(40):
                 chunk = sys.stdin.read(7)
-                print(len(chunk), end=" ", flush=True)
                 if chunk:
                     ws.process_chunk(chunk)
                 else:
