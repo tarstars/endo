@@ -155,6 +155,8 @@ void match_replace(crope& dna,istream& sour_pat,istream& sour_tmpl,int stage)
 	char c;
 	bool any=false;
 
+    cerr << "i = " << i << endl;
+
 	while(sour_pat>>c)
 		switch(c)
 		{
@@ -174,6 +176,7 @@ void match_replace(crope& dna,istream& sour_pat,istream& sour_tmpl,int stage)
                     std::cerr << "match failed" << endl;
 					return; 
                 }
+                cerr << "skip to " << i << endl;
 				break;}
 			case '?':
 				{
@@ -184,21 +187,25 @@ void match_replace(crope& dna,istream& sour_pat,istream& sour_tmpl,int stage)
                         std::cerr << "match failed" << endl;
                         return;
                     }
+                    size_t old_i = i;
 					i=x+word.size();
+                    std::cerr << "?: successfull advance to " << i << " from " << old_i << endl;
 					break;
 				}
 			case '(': stc.push(i);break;
 			case ')': env.push_back(dna.substr(stc.top(),i-stc.top()));stc.pop();break;
 		}
 
-	if (i<=int(dna.size()))
+	if (i<=int(dna.size())) {
+	    cerr << "truncate dna from " << i << " position"  << endl;
 		dna.erase(0,i);
+	}
 
 	crope r;
 
-    cout << "env size = " << env.size() << endl;
+    cerr << "env size = " << env.size() << endl;
     for (int p = 0; p < env.size(); p++) {
-        cout << "\tenv[i].size = " << env[p].size() << endl;
+        cerr << "\tenv[i].size = " << env[p].size() << endl;
     }
 
 

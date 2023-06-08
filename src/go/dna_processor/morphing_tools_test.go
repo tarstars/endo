@@ -283,7 +283,7 @@ func TestMatch(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			env, err := match(tc.dna, tc.pattern)
+			env, err := match(tc.dna, tc.pattern, false)
 
 			if err != nil {
 				t.Fatalf("Errof: %v", err)
@@ -426,7 +426,7 @@ func TestStep(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dna := NewSimpleDnaStorage(tc.sourceDna)
-			err := Step(dna, false)
+			err := Step(dna, 0, false)
 			if err != nil {
 				t.Errorf("Fail: error %v", err)
 			}

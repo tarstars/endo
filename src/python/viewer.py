@@ -221,8 +221,9 @@ def main():
     while running:
         clock.tick(40)
         if select.select([sys.stdin, ], [], [], 0.0)[0]:
-            while True:
+            for _ in range(40):
                 chunk = sys.stdin.read(7)
+                print(len(chunk), end=" ", flush=True)
                 if chunk:
                     ws.process_chunk(chunk)
                 else:

@@ -30,7 +30,7 @@ func main() {
 
 	dna := dna_processor.NewSimpleDnaStorage(string(data))
 
-	err = dna_processor.Step(dna, true)
+	err = dna_processor.Step(dna, 0, true)
 	fmt.Print("error: ", err)
 
 	_, err = fileDest.WriteString(dna.String())

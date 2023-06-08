@@ -1,7 +1,6 @@
 package dna_processor
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -75,11 +74,9 @@ func (storage *SimpleDnaStorage) Len() int {
 }
 
 func (storage *SimpleDnaStorage) SaveOffset() {
-	fmt.Print("saved offset: ", storage.savedOffset)
 	storage.savedOffset = storage.offset
 }
 
 func (storage *SimpleDnaStorage) RestoreOffset() {
-	fmt.Print("restored offset: replace", storage.offset, " with ", storage.savedOffset)
 	storage.offset = storage.savedOffset
 }

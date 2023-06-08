@@ -348,10 +348,14 @@ func (e Environment) NotEqual(other Environment) bool {
 	return false
 }
 
-func match(dna DnaStorage, pattern []PatternToken) (Environment, error) {
+func match(dna DnaStorage, pattern []PatternToken, debug bool) (Environment, error) {
 	env := make(Environment, 0)
 	stringStack := make([]bytes.Buffer, 0)
 	dna.SaveOffset()
+	simpleDna, _ := dna.(*SimpleDnaStorage)
+	if debug {
+		fmt.Fprintln(os.Stderr, "match: saved offset = ", simpleDna.savedOffset, " offset = ", simpleDna.offset)
+	}
 
 	for _, token := range pattern {
 		switch t := token.(type) {
@@ -361,7 +365,13 @@ func match(dna DnaStorage, pattern []PatternToken) (Environment, error) {
 			}
 			if dna.GetChar() != t.c {
 				dna.RestoreOffset()
+				if debug {
+					fmt.Fprintln(os.Stderr, "pattern mismatched")
+				}
 				return nil, errors.New("Mismatch")
+			}
+			for q := range stringStack {
+				stringStack[q].WriteByte(t.c)
 			}
 		case *SkipToken:
 			if len(stringStack) == 0 {
@@ -371,6 +381,10 @@ func match(dna DnaStorage, pattern []PatternToken) (Environment, error) {
 					return nil, errors.New("Not enough DNA")
 				}
 			} else {
+				simpleDna, _ := dna.(*SimpleDnaStorage)
+				if debug {
+					fmt.Fprintln(os.Stderr, "advance from ", simpleDna.offset, " to ", simpleDna.offset+t.n)
+				}
 				for p := 0; p < t.n; p++ {
 					if dna.IsEmpty() {
 						dna.RestoreOffset()
@@ -386,23 +400,46 @@ func match(dna DnaStorage, pattern []PatternToken) (Environment, error) {
 			index := dna.Index(t.s)
 			if index == -1 {
 				dna.RestoreOffset()
+				fmt.Fprintln(os.Stderr, "pattern not found")
 				return nil, errors.New("Pattern not found")
 			}
-			for p := 0; p < index; p++ {
-				if dna.IsEmpty() {
-					return nil, errors.New("Not enough DNA")
+			if debug {
+				fmt.Fprintln(os.Stderr, "successfull advance to pattern on ", index, " positions")
+			}
+			simpleDna, _ := dna.(*SimpleDnaStorage)
+			if debug {
+				fmt.Fprintln(os.Stderr, "advance from ", simpleDna.offset, " to ", simpleDna.offset+index)
+			}
+
+			if len(stringStack) != 0 {
+				for p := 0; p < index+len(t.s); p++ {
+					if dna.IsEmpty() {
+						return nil, errors.New("Not enough DNA")
+					}
+					c := dna.GetChar()
+					for q := range stringStack {
+						stringStack[q].WriteByte(c)
+					}
 				}
-				c := dna.GetChar()
-				for q := range stringStack {
-					stringStack[q].WriteByte(c)
-				}
+			} else {
+				dna.Skip(index + len(t.s))
 			}
 		case *BraToken:
 			stringStack = append(stringStack, bytes.Buffer{})
+			if debug {
+				fmt.Fprintln(os.Stderr, "bra: new buffer")
+			}
 		case *KetToken:
 			env = append(env, stringStack[len(stringStack)-1].String())
 			stringStack = stringStack[:len(stringStack)-1]
+			if debug {
+				fmt.Fprintln(os.Stderr, "ket: add string with length ", len(env[len(env)-1]))
+			}
 		}
+	}
+
+	if debug {
+		fmt.Fprintln(os.Stderr, "successfull match")
 	}
 
 	return env, nil
@@ -417,7 +454,7 @@ func formPrefix(template []TemplateToken, env Environment) (string, error) {
 			buf.WriteByte(t.c)
 		case *ReferenceToken:
 			subStr := ""
-			if t.l < len(env) {
+			if t.n < len(env) {
 				subStr = protect(t.l, env[t.n])
 			}
 			buf.WriteString(subStr)
@@ -473,10 +510,18 @@ func protect(l int, s string) string {
 	return s
 }
 
-func Step(dna DnaStorage, debug bool) error {
+func Step(dna DnaStorage, meter int, debug bool) error {
+	simpleDna, _ := dna.(*SimpleDnaStorage)
+	if debug {
+		fmt.Fprintln(os.Stderr, "initial offset ", simpleDna.offset)
+	}
 	currentPattern, err := pattern(dna)
 	if err != nil {
 		return err
+	}
+
+	if debug {
+		fmt.Fprintln(os.Stderr, "iteration ", meter, " offset after pattern ", simpleDna.offset)
 	}
 
 	if debug {
@@ -494,7 +539,12 @@ func Step(dna DnaStorage, debug bool) error {
 	}
 
 	if debug {
+		if debug {
+			fmt.Fprintln(os.Stderr, "offset after template ", simpleDna.offset)
+		}
+
 		templateString := templateToString(currentTemplate)
+
 		if len(templateString) < 1000 {
 			fmt.Fprintln(os.Stderr, "template: ", templateString)
 		} else {
@@ -502,7 +552,7 @@ func Step(dna DnaStorage, debug bool) error {
 		}
 	}
 
-	currentEnv, err := match(dna, currentPattern)
+	currentEnv, err := match(dna, currentPattern, debug)
 	if err != nil {
 		return err
 	}
@@ -513,6 +563,10 @@ func Step(dna DnaStorage, debug bool) error {
 			fmt.Fprintln(os.Stderr, "env: ", currentEnv)
 		} else {
 			fmt.Fprintln(os.Stderr, "env is too long, len = ", len(envString))
+			fmt.Fprintln(os.Stderr, "env len = ", len(currentEnv))
+			for p := range currentEnv {
+				fmt.Fprintln(os.Stderr, "\tlen(env[", p, "])=", len(currentEnv[p]))
+			}
 		}
 	}
 
