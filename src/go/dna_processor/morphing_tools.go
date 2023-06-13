@@ -385,15 +385,13 @@ func match(dna DnaStorage, pattern []PatternToken, debug bool) (Environment, err
 				if debug {
 					fmt.Fprintln(os.Stderr, "advance from ", simpleDna.offset, " to ", simpleDna.offset+t.n)
 				}
-				for p := 0; p < t.n; p++ {
-					if dna.IsEmpty() {
-						dna.RestoreOffset()
-						return nil, errors.New("Not enough DNA")
-					}
-					c := dna.GetChar()
-					for q := range stringStack {
-						stringStack[q].WriteByte(c)
-					}
+				s, err := dna.GetString(t.n)
+				if err != nil {
+					dna.RestoreOffset()
+					return nil, err
+				}
+				for q := range stringStack {
+					stringStack[q].WriteString(s)
 				}
 			}
 		case *SearchToken:

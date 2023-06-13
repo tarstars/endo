@@ -1,11 +1,13 @@
 package dna_processor
 
 import (
+	"errors"
 	"strings"
 )
 
 type DnaStorage interface {
 	GetChar() byte
+	GetString(n int) (string, error)
 	UndoGet()
 	IsEmpty() bool
 	Index(string) int
@@ -79,4 +81,15 @@ func (storage *SimpleDnaStorage) SaveOffset() {
 
 func (storage *SimpleDnaStorage) RestoreOffset() {
 	storage.offset = storage.savedOffset
+}
+
+func (storage *SimpleDnaStorage) GetString(n int) (string, error) {
+	oldOffset := storage.offset
+	storage.offset = oldOffset + n
+
+	if storage.offset >= len(storage.data) {
+		return "", errors.New("not match")
+	}
+
+	return storage.data[oldOffset:storage.offset], nil
 }

@@ -9,15 +9,15 @@
 using namespace std;
 using namespace __gnu_cxx;
 
-#define FORE(itx,a) for(auto itx = (a).begin(); itx!=(a).end(); ++itx)
+#define FORE(itx,a) for(typeof((a).begin()) itx = (a).begin(); itx!=(a).end(); ++itx)
 #define FORR(x,a,b) for(int x=a;x<b;++x)
 
 // #define SHOW_EVERY 100000
 // #define DUMP_EVERY 100000
 
-char pop(crope &dna,int &ind)
+char pop(__gnu_cxx::crope &dna,int &ind)
 {
-	if (ind>=dna.size()) throw(string("dna empty"));
+    if (ind>=dna.size()) throw(std::string("dna empty"));
 	return dna[ind++];
 }
 
@@ -29,7 +29,6 @@ int nat(crope &dna, int& ind)
 		case 'I': case 'F': return 2*nat(dna,ind);
 		case 'C': return 2*nat(dna,ind)+1;
 	}
-    return 0;
 }
 
 crope consts(crope& dna,int &ind)
@@ -156,6 +155,8 @@ void match_replace(crope& dna,istream& sour_pat,istream& sour_tmpl,int stage)
 	char c;
 	bool any=false;
 
+    cerr << "i = " << i << endl;
+
 	while(sour_pat>>c)
 		switch(c)
 		{
@@ -163,32 +164,50 @@ void match_replace(crope& dna,istream& sour_pat,istream& sour_tmpl,int stage)
 				sour_pat>>c; 
 				if(i<int(dna.size()) && c==dna[i]) 
 					++i; 
-				else 
-					return; 
+                else {
+                    cerr << "match failed" << endl;
+                    return;
+                }
 				break;
 			case '!': {
 				int n;sour_pat>>n; 
 				i+=n; 
-				if (i>int(dna.size())) 
+                if (i>int(dna.size())) {
+                    std::cerr << "match failed" << endl;
 					return; 
+                }
+                cerr << "skip to " << i << endl;
 				break;}
 			case '?':
 				{
 					string word;
 					sour_pat>>word;
 					size_t x=dna.find(word.c_str(),i);
-					if(x==string::npos) return;
+                    if(x==string::npos) {
+                        std::cerr << "match failed" << endl;
+                        return;
+                    }
+                    size_t old_i = i;
 					i=x+word.size();
+                    std::cerr << "?: successfull advance to " << i << " from " << old_i << endl;
 					break;
 				}
 			case '(': stc.push(i);break;
 			case ')': env.push_back(dna.substr(stc.top(),i-stc.top()));stc.pop();break;
 		}
 
-	if (i<=int(dna.size()))
+	if (i<=int(dna.size())) {
+	    cerr << "truncate dna from " << i << " position"  << endl;
 		dna.erase(0,i);
+	}
 
 	crope r;
+
+    cerr << "env size = " << env.size() << endl;
+    for (int p = 0; p < env.size(); p++) {
+        cerr << "\tenv[i].size = " << env[p].size() << endl;
+    }
+
 
 	while(sour_tmpl>>c)
 		switch(c){
@@ -199,54 +218,34 @@ void match_replace(crope& dna,istream& sour_pat,istream& sour_tmpl,int stage)
 	dna=r+dna;
 }
 
-void do_work(void)
+void do_work()
 {
 	crope dna;
 	{
 		string once_upon;
-		cin>>once_upon;
+        cin>>once_upon;
 		dna=crope(once_upon.c_str());
 	}
-	int stage;
+    int ind=0;
 
 	try{
-		for(stage=0;;++stage)
-		{
-			int ind=0;	
+        while (true) {
+            stringstream pat_mem,tem_mem;
+            make_pattern(dna,ind,cout,pat_mem);
+            make_template(dna,ind,cout,tem_mem);
 
-			if(dna.size()<200)
-				cerr<<"dna="<<dna<<endl;
+            cerr<<"pat="<<pat_mem.str()<<endl;
+            cerr<<"tem="<<tem_mem.str()<<endl;
 
-#if defined(DUMP_EVERY) && DUMP_EVERY > 0
-                        if(!(stage % DUMP_EVERY) && stage)
-                        {
-                            stringstream dump_name;
-                            dump_name << "dump-0-" << setw(10) << setfill('0') << stage << ".dna";
-                            ofstream dump(dump_name.str().c_str());
-                            dump.write(dna.c_str(), dna.size());
-                            dump.close();
-                        }
-#endif				
-			stringstream pat_mem,tem_mem;
+            dna.erase(0,ind);
 
-			make_pattern(dna,ind,cout,pat_mem);
-			make_template(dna,ind,cout,tem_mem);
+            match_replace(dna,pat_mem,tem_mem, 0);
 
-#if defined(SHOW_EVERY) && SHOW_EVERY > 0
-			if(stage%SHOW_EVERY==0)	{
-				cerr<<stage<<" "<<dna.size()<<endl;
-				cerr<<"pat="<<pat_mem.str()<<endl;
-				cerr<<"tem="<<tem_mem.str()<<endl;
-				}
-#endif
-
-			dna.erase(0,ind);
-
-			match_replace(dna,pat_mem,tem_mem,stage);
-		}
-	}catch(string msg){cerr<<"End of program:"<<msg<<endl;}
-
-	cerr<<"Certain stages "<<stage<<endl;
+//        ofstream dump(destination.c_str());
+//        dump.write(dna.c_str(), dna.size());
+//        dump.close();
+        }
+    }catch(string msg){cerr<<"End of program:"<<msg<<endl;}
 }
 
 void numberTest(void)
@@ -319,9 +318,9 @@ void doTests(void)
 	//stringTest00();
 }
 
-int main()
+int main(int argc, char ** argv)
 {
-	do_work();
+    do_work();
 	//doTests();
 	return 0;
 }

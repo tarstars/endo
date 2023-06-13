@@ -6,6 +6,8 @@ import pygame
 import select
 import sys
 
+from PIL import Image
+
 logger = logging.Logger(__file__, level=logging.DEBUG)
 
 c_handler = logging.StreamHandler()
@@ -17,6 +19,7 @@ c_handler.setFormatter(c_format)
 
 # Add handlers to the logger
 logger.addHandler(c_handler)
+
 
 def empty_bitmap(shape):
     return pygame.Surface(shape, pygame.SRCALPHA)
@@ -50,6 +53,7 @@ class RnaWorkspace:
         self.bitmaps.append(empty_bitmap(shape=shape))
 
     def add_color(self, color):
+        # logger.debug("add color %s", color)
         self.bucket_rgb.append(color)
 
     def add_transparent(self):
@@ -78,15 +82,17 @@ class RnaWorkspace:
         sg = sum(x[1] for x in self.bucket_rgb)
         sb = sum(x[2] for x in self.bucket_rgb)
 
-        n = len(self.bucket_rgb)
-        if n:
-            sr //= n
-            sg //= n
-            sb //= n
+        n_color = len(self.bucket_rgb)
+        if n_color:
+            sr //= n_color
+            sg //= n_color
+            sb //= n_color
 
         alpha = sum(self.bucket_alpha)
-        if n:
-            alpha //= n
+        n_alpha = len(self.bucket_alpha)
+
+        if n_alpha:
+            alpha //= n_alpha
         else:
             alpha = 255
 
@@ -94,24 +100,26 @@ class RnaWorkspace:
 
     def line(self):
         color_alpha = self.get_color_alpha()
-        pygame.draw.line(surface=self.bitmaps[0],
-                         color=color_alpha,
-                         start_pos=self.pos,
-                         end_pos=self.mark,
-                         )
+        try:
+            pygame.draw.line(surface=self.bitmaps[-1],
+                             color=color_alpha,
+                             start_pos=self.pos,
+                             end_pos=self.mark,
+                             )
+        except ValueError:
+            print('color argument', color_alpha)
 
     def get_pixel(self, pos):
-        return self.bitmaps[0].get_at(pos)
+        return self.bitmaps[-1].get_at(pos)
 
     def set_pixel(self, pos, color):
-        self.bitmaps[0].set_at(pos, color)
+        self.bitmaps[-1].set_at(pos, color)
 
     def try_fill(self):
         new_color = self.get_color_alpha()
         old_color = self.get_pixel(self.pos)
 
-        logger.debug('new_color %s', new_color)
-        logger.debug('old_color %s', old_color)
+        logger.debug(f'try fill with {new_color=} {old_color=}')
 
         def nei(x, y):
             yield x - 1, y
@@ -125,7 +133,7 @@ class RnaWorkspace:
             for point in nei(x, y):
                 if 0 <= point[0] < self.shape[0] and 0 <= point[1] < self.shape[1] and point not in visited:
                     current_color = self.get_pixel(point)
-                    if current_color != new_color:
+                    if current_color == old_color:
                         yield point
                         visited.add(point)
 
@@ -140,29 +148,44 @@ class RnaWorkspace:
                 q.append(nei_point)
 
     def compose(self):
+        logger.debug("compose, number of layers = %d", len(self.bitmaps))
         if len(self.bitmaps) > 1:
+            pygame.image.save(self.bitmaps[-1], 'compose_input_0.png')
+            pygame.image.save(self.bitmaps[-2], 'compose_input_1.png')
             for y in range(self.shape[1]):
                 for x in range(self.shape[0]):
-                    p0 = self.bitmaps[0].get_at((x, y))
-                    p1 = self.bitmaps[1].get_at((x, y))
+                    p0 = self.bitmaps[-1].get_at((x, y))
+                    p1 = self.bitmaps[-2].get_at((x, y))
                     p_res = [0] * 4
                     for z in range(4):
-                        p_res[z] = p0[z] + p1[z] * (255 - p0[3]) // 255
-                    self.bitmaps[1].set_at((x, y), p_res)
-            self.bitmaps = self.bitmaps[1:]
+                        p_res[z] = min(255, p0[z] + p1[z] * (255 - p0[3]) // 255)
+                    self.bitmaps[-2].set_at((x, y), p_res)
+            self.bitmaps.pop()
+            pygame.image.save(self.bitmaps[-1], 'compose_output.png')
 
     def clip(self):
+        logger.debug("clip, number of layers = %d", len(self.bitmaps))
         if len(self.bitmaps) > 1:
-            for y in range(self.shape[1]):
-                for x in range(self.shape[0]):
-                    p0 = self.bitmaps[0].get_at(x_y=(x, y))
-                    p1 = self.bitmaps[1].get_at(x_y=(x, y))
+            for y in range(self.shape[-2]):
+                for x in range(self.shape[-1]):
+                    p0 = self.bitmaps[-1].get_at((x, y))
+                    p1 = self.bitmaps[-2].get_at((x, y))
                     p_res = [0] * 4
                     for z in range(4):
-                        p_res[z] = p1[z] * p0[-1] // 255
-            self.bitmaps = self.bitmaps[1:]
+                        p_res[z] = min(255, p1[z] * p0[3] // 255)
+                    self.bitmaps[-2].set_at((x, y), p_res)
+            self.bitmaps.pop()
+
+    def mark_to_position(self):
+        self.mark = self.pos
+
+    def add_new_bitmap(self):
+        logger.debug("new layer, number of layers = %d", len(self.bitmaps))
+        if len(self.bitmaps) < 10:
+            self.bitmaps.append(empty_bitmap(self.shape))
 
     def process_chunk(self, chunk):
+        # logger.debug('chunk %s', chunk)
         match chunk:
             case 'PIPIIIC':
                 self.add_color(self.black)
@@ -193,14 +216,13 @@ class RnaWorkspace:
             case 'PFFFFFP':
                 self.rotate_cw()
             case 'PCCIFFP':
-                self.mark = self.pos
+                self.mark_to_position()
             case 'PFFICCP':
                 self.line()
             case 'PIIPIIP':
                 self.try_fill()
             case 'PCCPFFP':
-                if len(self.bitmaps) < 10:
-                    self.bitmaps.append(empty_bitmap(self.shape))
+                self.add_new_bitmap()
             case 'PFFPCCP':
                 self.compose()
             case 'PFFICCF':
@@ -218,13 +240,19 @@ def main():
     running = True
 
     clock = pygame.time.Clock()
+    chunk_meter = 0
     while running:
         clock.tick(40)
         if select.select([sys.stdin, ], [], [], 0.0)[0]:
-            for _ in range(40):
-                chunk = sys.stdin.read(7)
+            for _ in range(1000):
+                chunk = sys.stdin.read(8)
                 if chunk:
-                    ws.process_chunk(chunk)
+                    try:
+                        ws.process_chunk(chunk[:-1])
+                    except ValueError:
+                        print(f'{chunk_meter=}')
+                        raise
+                    chunk_meter += 1
                 else:
                     break
         for event in pygame.event.get():
@@ -232,7 +260,7 @@ def main():
                 running = False
         screen.fill((0, 170, 0))
 
-        surface = ws.bitmaps[0]
+        surface = ws.bitmaps[-1]
         opaque_surface = surface.convert_alpha()
         for x in range(opaque_surface.get_width()):
             for y in range(opaque_surface.get_height()):
